@@ -127,3 +127,145 @@ export interface HIPAALog {
   ipAddress: string;
   successful: boolean;
 }
+
+// MVP Call Loop Types
+
+// IntakeSnapshot schema (HIPAA-compliant, minimal PHI)
+export interface IntakeSnapshot {
+  call_id: string;
+  patient?: {
+    full_name?: string;
+    dob?: string; // ISO date format
+    callback_number?: string;
+  };
+  answers: Record<string, SlotAnswer>;
+  red_flags: string[];
+  completed: boolean;
+  timestamp: string; // ISO date-time format
+}
+
+export interface SlotAnswer {
+  value?: any;
+  confidence: number;
+  status: 'filled' | 'unknown' | 'not_applicable';
+  evidence_turn_ids: string[];
+}
+
+// Transcript Turn object
+export interface TranscriptTurn {
+  turn_id: string;
+  call_id: string;
+  speaker: 'patient' | 'agent';
+  text: string;
+  start_ms: number;
+  end_ms: number;
+  asr_confidence: number;
+  is_final?: boolean;
+  entities?: Entity[];
+  redactions?: Redaction[];
+}
+
+export interface Entity {
+  type: string; // e.g., 'dob', 'medication', 'symptom'
+  value: string;
+  confidence: number;
+}
+
+export interface Redaction {
+  type: string; // e.g., 'phone', 'ssn', 'address'
+  offset: number;
+  length: number;
+}
+
+// LLM Function/Tool Schemas
+export interface LLMFunctionCall {
+  name: 'emit_snapshot' | 'request_handoff' | 'speak';
+  arguments: Record<string, any>;
+}
+
+export interface EmitSnapshotArgs {
+  snapshot: IntakeSnapshot;
+}
+
+export interface RequestHandoffArgs {
+  call_id: string;
+  reason: string;
+  priority?: 'urgent' | 'high' | 'normal';
+}
+
+export interface SpeakArgs {
+  ssml: string;
+  emotion?: 'calm' | 'concerned' | 'encouraging';
+}
+
+// Orchestrator request/response types
+export interface TranscriptRequest {
+  turn: TranscriptTurn;
+}
+
+export interface SnapshotRequest {
+  snapshot: IntakeSnapshot;
+}
+
+export interface HandoffRequest {
+  call_id: string;
+  reason: string;
+  priority?: 'urgent' | 'high' | 'normal';
+}
+
+// Slot Engine types
+export interface IntakeQuestion {
+  id: string;
+  verbatim: string;
+  slot: string;
+  category: 'personal' | 'medical' | 'visit';
+  required: boolean;
+  validation?: {
+    type: 'string' | 'date' | 'boolean' | 'array';
+    format?: string;
+  };
+}
+
+export interface SlotEngineState {
+  call_id: string;
+  questions: IntakeQuestion[];
+  current_question_index: number;
+  snapshot: IntakeSnapshot;
+  turns: TranscriptTurn[];
+}
+
+// Safety detection types
+export interface RedFlagRule {
+  tokens: string[][];
+  reason: string;
+  priority: 'urgent' | 'high' | 'normal';
+}
+
+// Twilio Media Streams types
+export interface TwilioMediaMessage {
+  event: 'connected' | 'start' | 'media' | 'stop';
+  sequenceNumber?: string;
+  streamSid?: string;
+  media?: {
+    track: 'inbound' | 'outbound';
+    chunk: string; // base64 encoded audio
+    timestamp: string;
+    payload: string; // base64 µ-law audio
+  };
+  start?: {
+    streamSid: string;
+    accountSid: string;
+    callSid: string;
+    tracks: string[];
+    mediaFormat: {
+      encoding: string;
+      sampleRate: number;
+      channels: number;
+    };
+  };
+  stop?: {
+    streamSid: string;
+    accountSid: string;
+    callSid: string;
+  };
+}

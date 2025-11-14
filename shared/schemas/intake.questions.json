@@ -1,0 +1,130 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "IntakeQuestionList",
+  "type": "object",
+  "properties": {
+    "version": {
+      "type": "string",
+      "description": "Schema version"
+    },
+    "questions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Unique question identifier"
+          },
+          "verbatim": {
+            "type": "string",
+            "description": "Exact question text that must be asked"
+          },
+          "slot": {
+            "type": "string",
+            "description": "Slot name in IntakeSnapshot.answers"
+          },
+          "category": {
+            "type": "string",
+            "enum": ["personal", "medical", "visit"],
+            "description": "Question category"
+          },
+          "required": {
+            "type": "boolean",
+            "description": "Whether this question must be answered"
+          },
+          "validation": {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": ["string", "date", "boolean", "array"]
+              },
+              "format": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "required": ["id", "verbatim", "slot", "category", "required"]
+      }
+    }
+  },
+  "required": ["version", "questions"],
+  "data": {
+    "version": "1.0.0",
+    "questions": [
+      {
+        "id": "q_full_name",
+        "verbatim": "What is your full name?",
+        "slot": "full_name",
+        "category": "personal",
+        "required": true,
+        "validation": {
+          "type": "string"
+        }
+      },
+      {
+        "id": "q_dob",
+        "verbatim": "What is your date of birth?",
+        "slot": "dob",
+        "category": "personal",
+        "required": true,
+        "validation": {
+          "type": "date",
+          "format": "date"
+        }
+      },
+      {
+        "id": "q_callback_number",
+        "verbatim": "What is the best phone number to reach you at?",
+        "slot": "callback_number",
+        "category": "personal",
+        "required": true,
+        "validation": {
+          "type": "string"
+        }
+      },
+      {
+        "id": "q_chief_complaint",
+        "verbatim": "What brings you in today?",
+        "slot": "chief_complaint",
+        "category": "visit",
+        "required": true,
+        "validation": {
+          "type": "string"
+        }
+      },
+      {
+        "id": "q_allergies",
+        "verbatim": "Do you have any allergies to medications?",
+        "slot": "allergies",
+        "category": "medical",
+        "required": true,
+        "validation": {
+          "type": "array"
+        }
+      },
+      {
+        "id": "q_medications",
+        "verbatim": "What medications are you currently taking?",
+        "slot": "medications",
+        "category": "medical",
+        "required": true,
+        "validation": {
+          "type": "array"
+        }
+      },
+      {
+        "id": "q_symptoms_duration",
+        "verbatim": "Have you experienced these symptoms before?",
+        "slot": "symptoms_history",
+        "category": "medical",
+        "required": true,
+        "validation": {
+          "type": "boolean"
+        }
+      }
+    ]
+  }
+}
