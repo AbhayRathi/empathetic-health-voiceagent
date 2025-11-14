@@ -1,0 +1,39 @@
+{
+  "name": "empathetic-health-voiceagent",
+  "version": "1.0.0",
+  "description": "empathetic voice agent that answers questions, transcribes, and is integrable into EHR systems",
+  "main": "index.js",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "type-check": "tsc --noEmit"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@deepgram/sdk": "^4.11.2",
+    "@elevenlabs/elevenlabs-js": "^2.24.1",
+    "@types/node": "^24.10.1",
+    "@types/react": "^19.2.5",
+    "@types/react-dom": "^19.2.3",
+    "@types/ws": "^8.18.1",
+    "autoprefixer": "^10.4.22",
+    "dotenv": "^17.2.3",
+    "next": "^16.0.3",
+    "openai": "^6.9.0",
+    "postcss": "^8.5.6",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "tailwindcss": "^3.4.18",
+    "twilio": "^5.10.5",
+    "typescript": "^5.9.3",
+    "ws": "^8.18.3"
+  },
+  "devDependencies": {
+    "eslint": "^9.39.1",
+    "eslint-config-next": "^16.0.3"
+  }
+}
