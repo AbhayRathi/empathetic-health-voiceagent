@@ -1,0 +1,81 @@
+version: '3.8'
+
+services:
+  # Optional: PostgreSQL for persistent storage
+  postgres:
+    image: postgres:15-alpine
+    container_name: healthvoice-postgres
+    environment:
+      POSTGRES_USER: healthvoice
+      POSTGRES_PASSWORD: dev_password
+      POSTGRES_DB: healthvoice_dev
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U healthvoice"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Optional: Redis for queueing and caching
+  redis:
+    image: redis:7-alpine
+    container_name: healthvoice-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  # Next.js application
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: healthvoice-app
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+      - DATABASE_URL=postgresql://healthvoice:dev_password@postgres:5432/healthvoice_dev
+      - REDIS_URL=redis://redis:6379
+      - DEVELOPER_MODE=true
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - /app/.next
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: npm run dev
+
+  # WebSocket server for Twilio Media Streams
+  websocket:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: healthvoice-websocket
+    ports:
+      - "8080:8080"
+    environment:
+      - NODE_ENV=development
+      - WS_PORT=8080
+      - API_BASE=http://app:3000
+    volumes:
+      - .:/app
+      - /app/node_modules
+    depends_on:
+      - app
+    command: node scripts/websocket-server.js
+
+volumes:
+  postgres_data:
+  redis_data:
