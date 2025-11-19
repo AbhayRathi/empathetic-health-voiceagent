@@ -32,9 +32,11 @@ simulate: ## Run Twilio call simulator (normal conversation)
 simulate-red-flag: ## Run red flag detection scenario
 	node scripts/simulate-call.js --red-flag
 
-test: type-check ## Run all tests
-	@echo "✓ Type checking passed"
-	@echo "Tests would run here (not yet implemented)"
+smoke-test: ## Run smoke tests for transcription MVP (requires dev server running)
+	DEVELOPER_MODE=true node scripts/smoke-test.js
+
+test: type-check smoke-test ## Run all tests
+	@echo "✓ All tests passed"
 
 clean: ## Clean build artifacts
 	rm -rf .next
