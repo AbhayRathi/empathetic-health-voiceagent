@@ -75,7 +75,15 @@ export class Orchestrator {
     // Add turn to state
     this.slotEngine.addTranscriptTurn(state, turn);
 
-    // Emit transcript event
+    // Emit appropriate event based on is_final
+    this.emitEvent({
+      type: turn.is_final ? 'final' : 'partial',
+      call_id: turn.call_id,
+      timestamp: new Date().toISOString(),
+      data: { turn },
+    });
+
+    // Also emit generic transcript_received for backwards compatibility
     this.emitEvent({
       type: 'transcript_received',
       call_id: turn.call_id,
@@ -210,9 +218,17 @@ export class Orchestrator {
       state.snapshot = snapshot;
     }
 
-    // Emit event
+    // Emit events
     this.emitEvent({
       type: 'snapshot_updated',
+      call_id: callId,
+      timestamp: new Date().toISOString(),
+      data: { snapshot },
+    });
+
+    // Also emit as snapshot_update for SSE compatibility
+    this.emitEvent({
+      type: 'snapshot_update',
       call_id: callId,
       timestamp: new Date().toISOString(),
       data: { snapshot },
@@ -363,11 +379,16 @@ export interface OrchestratorEvent {
   type:
     | 'session_started'
     | 'transcript_received'
+    | 'partial'
+    | 'final'
     | 'red_flag_detected'
     | 'snapshot_updated'
+    | 'snapshot_update'
     | 'slot_updated'
     | 'handoff_requested'
     | 'speak_request'
+    | 'tts_playback'
+    | 'twinmind_correction'
     | 'intake_completed'
     | 'session_ended';
   call_id: string;

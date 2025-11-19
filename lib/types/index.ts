@@ -269,3 +269,40 @@ export interface TwilioMediaMessage {
     callSid: string;
   };
 }
+
+// TwinMind API types
+export interface TwinMindJob {
+  job_id: string;
+  call_id: string;
+  chunk_id: string;
+  chunk_path?: string;
+  audio_duration_seconds?: number;
+  status: 'pending' | 'processing' | 'completed' | 'failed';
+  twin_job_id?: string;
+  created_at: string;
+  completed_at?: string;
+  error?: string;
+}
+
+export interface TwinMindSegment {
+  speaker_label: string; // e.g., 'speaker_0', 'speaker_1'
+  text: string;
+  start_seconds: number;
+  end_seconds: number;
+  confidence: number;
+}
+
+export interface TwinMindCorrectionEvent {
+  call_id: string;
+  chunk_id: string;
+  twinmind_job_id: string;
+  diffs: TwinMindDiff[];
+  timestamp: string; // ISO8601
+}
+
+export interface TwinMindDiff {
+  live_turn_id: string;
+  twin_text: string;
+  diff_type: 'modified' | 'added' | 'removed';
+  fields_changed: string[]; // e.g., ['medication', 'allergy', 'dob']
+}
