@@ -2,15 +2,22 @@ import { createClient, LiveTranscriptionEvents } from '@deepgram/sdk';
 import { TranscriptEntry } from '../types';
 
 export class DeepgramService {
-  private client;
+  private client: any;
   private apiKey: string;
+  private isDeveloperMode: boolean;
 
   constructor() {
+    this.isDeveloperMode = process.env.DEVELOPER_MODE === 'true';
     this.apiKey = process.env.DEEPGRAM_API_KEY || '';
-    if (!this.apiKey) {
-      throw new Error('DEEPGRAM_API_KEY is required');
+    
+    if (!this.isDeveloperMode && !this.apiKey) {
+      console.warn('DEEPGRAM_API_KEY not set and DEVELOPER_MODE is false. Falling back to mock mode.');
+      this.isDeveloperMode = true;
     }
-    this.client = createClient(this.apiKey);
+
+    if (!this.isDeveloperMode) {
+      this.client = createClient(this.apiKey);
+    }
   }
 
   /**
@@ -21,6 +28,10 @@ export class DeepgramService {
     onTranscript: (entry: TranscriptEntry) => void,
     onError: (error: Error) => void
   ) {
+    if (this.isDeveloperMode) {
+      return this.createMockConnection(onTranscript);
+    }
+
     try {
       const connection = this.client.listen.live({
         model: 'nova-2',
@@ -70,9 +81,68 @@ export class DeepgramService {
   }
 
   /**
+   * Create mock connection for developer mode
+   */
+  private createMockConnection(onTranscript: (entry: TranscriptEntry) => void) {
+    console.log('[Deepgram Mock] Creating mock transcription connection');
+
+    const mockPhrases = [
+      'Hello, how can I help you today?',
+      'My name is John Smith',
+      'I was born on January 1st, 1990',
+      'I\'m here for a checkup',
+      'No, I don\'t have any allergies',
+    ];
+
+    let phraseIndex = 0;
+    let isOpen = false;
+
+    const mockConnection = {
+      send: (data: any) => {
+        // Mock: emit a transcript every few frames
+        if (Math.random() < 0.05 && isOpen) {
+          const phrase = mockPhrases[phraseIndex % mockPhrases.length];
+          
+          const entry: TranscriptEntry = {
+            timestamp: new Date(),
+            speaker: 'patient',
+            text: phrase,
+            confidence: 0.90 + Math.random() * 0.09,
+            isFinal: Math.random() < 0.3,
+          };
+
+          onTranscript(entry);
+          
+          if (entry.isFinal) {
+            phraseIndex++;
+          }
+        }
+      },
+      finish: () => {
+        console.log('[Deepgram Mock] Connection closed');
+        isOpen = false;
+      },
+      getReadyState: () => (isOpen ? 1 : 3), // 1 = OPEN, 3 = CLOSED
+    };
+
+    // Simulate connection opening
+    setTimeout(() => {
+      isOpen = true;
+      console.log('[Deepgram Mock] Connection opened');
+    }, 100);
+
+    return mockConnection;
+  }
+
+  /**
    * Transcribe pre-recorded audio file
    */
   async transcribeFile(audioBuffer: Buffer): Promise<string> {
+    if (this.isDeveloperMode) {
+      console.log(`[Deepgram Mock] Transcribing ${audioBuffer.length} bytes of audio`);
+      return 'Mock transcription of pre-recorded audio file. This is a placeholder transcript generated in developer mode.';
+    }
+
     try {
       const { result } = await this.client.listen.prerecorded.transcribeFile(
         audioBuffer,

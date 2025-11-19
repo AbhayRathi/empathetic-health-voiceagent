@@ -1,21 +1,26 @@
 import twilio from 'twilio';
 
 export class TwilioService {
-  private client;
+  private client: any;
   private accountSid: string;
   private authToken: string;
   private phoneNumber: string;
+  private isDeveloperMode: boolean;
 
   constructor() {
+    this.isDeveloperMode = process.env.DEVELOPER_MODE === 'true';
     this.accountSid = process.env.TWILIO_ACCOUNT_SID || '';
     this.authToken = process.env.TWILIO_AUTH_TOKEN || '';
     this.phoneNumber = process.env.TWILIO_PHONE_NUMBER || '';
 
-    if (!this.accountSid || !this.authToken || !this.phoneNumber) {
-      throw new Error('Twilio credentials are required');
+    if (!this.isDeveloperMode && (!this.accountSid || !this.authToken || !this.phoneNumber)) {
+      console.warn('Twilio credentials not set and DEVELOPER_MODE is false. Falling back to mock mode.');
+      this.isDeveloperMode = true;
     }
 
-    this.client = twilio(this.accountSid, this.authToken);
+    if (!this.isDeveloperMode) {
+      this.client = twilio(this.accountSid, this.authToken);
+    }
   }
 
   /**
@@ -37,6 +42,12 @@ export class TwilioService {
    * Make an outbound call
    */
   async makeCall(to: string, websocketUrl: string): Promise<string> {
+    if (this.isDeveloperMode) {
+      const mockCallSid = `CA_mock_${Date.now()}`;
+      console.log(`[Twilio Mock] Outbound call to ${to}, CallSid: ${mockCallSid}`);
+      return mockCallSid;
+    }
+
     try {
       const call = await this.client.calls.create({
         to,
@@ -55,6 +66,18 @@ export class TwilioService {
    * Get call details
    */
   async getCallDetails(callSid: string) {
+    if (this.isDeveloperMode) {
+      return {
+        sid: callSid,
+        from: '+15551234567',
+        to: '+15559876543',
+        status: 'in-progress',
+        duration: null,
+        startTime: new Date(),
+        endTime: null,
+      };
+    }
+
     try {
       const call = await this.client.calls(callSid).fetch();
       return {
@@ -76,6 +99,11 @@ export class TwilioService {
    * Get recording URL for a call
    */
   async getRecordingUrl(callSid: string): Promise<string | null> {
+    if (this.isDeveloperMode) {
+      console.log(`[Twilio Mock] Recording requested for ${callSid}`);
+      return null;
+    }
+
     try {
       const recordings = await this.client.recordings.list({ callSid, limit: 1 });
       
@@ -94,6 +122,11 @@ export class TwilioService {
    * End an active call
    */
   async endCall(callSid: string): Promise<void> {
+    if (this.isDeveloperMode) {
+      console.log(`[Twilio Mock] Ending call ${callSid}`);
+      return;
+    }
+
     try {
       await this.client.calls(callSid).update({ status: 'completed' });
     } catch (error) {
@@ -106,6 +139,11 @@ export class TwilioService {
    * Validate Twilio request signature
    */
   validateRequest(url: string, params: any, signature: string): boolean {
+    if (this.isDeveloperMode) {
+      console.log('[Twilio Mock] Signature validation skipped in developer mode');
+      return true;
+    }
+
     return twilio.validateRequest(
       this.authToken,
       signature,
