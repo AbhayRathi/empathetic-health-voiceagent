@@ -1,0 +1,97 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://empathetic-health.io/schemas/transcript-turn.json",
+  "title": "TranscriptTurn",
+  "description": "Single turn in a conversation transcript from ASR",
+  "type": "object",
+  "properties": {
+    "turn_id": {
+      "type": "string",
+      "description": "Unique identifier for this transcript turn"
+    },
+    "call_id": {
+      "type": "string",
+      "description": "Call session identifier this turn belongs to"
+    },
+    "speaker": {
+      "type": "string",
+      "enum": ["patient", "agent"],
+      "description": "Speaker role (patient or agent)"
+    },
+    "text": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Transcribed text content"
+    },
+    "start_ms": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Start timestamp in milliseconds from call start"
+    },
+    "end_ms": {
+      "type": "number",
+      "minimum": 0,
+      "description": "End timestamp in milliseconds from call start"
+    },
+    "asr_confidence": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "description": "ASR confidence score (0-1)"
+    },
+    "is_final": {
+      "type": "boolean",
+      "description": "Whether this is a final transcript (true) or partial/interim (false)"
+    },
+    "entities": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "description": "Entity type (e.g., 'dob', 'medication', 'symptom')"
+          },
+          "value": {
+            "type": "string",
+            "description": "Extracted entity value"
+          },
+          "confidence": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1,
+            "description": "Entity extraction confidence"
+          }
+        },
+        "required": ["type", "value", "confidence"]
+      },
+      "description": "Extracted named entities from this turn"
+    },
+    "redactions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "description": "Type of redacted information (e.g., 'phone', 'ssn', 'address')"
+          },
+          "offset": {
+            "type": "number",
+            "minimum": 0,
+            "description": "Character offset where redaction starts"
+          },
+          "length": {
+            "type": "number",
+            "minimum": 1,
+            "description": "Length of redacted text"
+          }
+        },
+        "required": ["type", "offset", "length"]
+      },
+      "description": "HIPAA-compliant redactions applied to PHI"
+    }
+  },
+  "required": ["turn_id", "call_id", "speaker", "text", "start_ms", "end_ms", "asr_confidence"],
+  "additionalProperties": false
+}
