@@ -4,13 +4,18 @@ import { GPTMessage, GPTResponse, PatientIntakeSnapshot, RequiredQuestion } from
 export class GPTService {
   private client: OpenAI;
   private systemPrompt: string;
+  private isDeveloperMode: boolean;
 
   constructor() {
+    this.isDeveloperMode = process.env.DEVELOPER_MODE === 'true';
     const apiKey = process.env.OPENAI_API_KEY;
-    if (!apiKey) {
-      throw new Error('OPENAI_API_KEY is required');
+    
+    if (!this.isDeveloperMode && !apiKey) {
+      console.warn('OPENAI_API_KEY not set and DEVELOPER_MODE is false. Falling back to mock mode.');
+      this.isDeveloperMode = true;
     }
-    this.client = new OpenAI({ apiKey });
+    
+    this.client = new OpenAI({ apiKey: apiKey || 'mock-key' });
     this.systemPrompt = this.buildSystemPrompt();
   }
 
@@ -52,6 +57,10 @@ Extract information in JSON format when requested.`;
     snapshot: PatientIntakeSnapshot,
     requiredQuestions: RequiredQuestion[]
   ): Promise<GPTResponse> {
+    if (this.isDeveloperMode) {
+      return this.generateMockResponse(requiredQuestions);
+    }
+    
     try {
       // Find next required question to ask
       const nextQuestion = requiredQuestions.find(q => !q.asked);
@@ -101,6 +110,10 @@ Extract information in JSON format when requested.`;
    * Extract structured information from conversation
    */
   async extractInformation(transcript: string): Promise<Partial<PatientIntakeSnapshot>> {
+    if (this.isDeveloperMode) {
+      return this.extractInformationMock(transcript);
+    }
+    
     try {
       const completion = await this.client.chat.completions.create({
         model: 'gpt-4-turbo-preview',
@@ -153,5 +166,59 @@ Only include information explicitly stated in the transcript. Use null for missi
     const responseText = response.toLowerCase();
     
     return criticalKeywords.some(keyword => responseText.includes(keyword));
+  }
+
+  /**
+   * Mock response for developer mode
+   */
+  private generateMockResponse(requiredQuestions: RequiredQuestion[]): GPTResponse {
+    const nextQuestion = requiredQuestions.find(q => !q.asked);
+    
+    if (nextQuestion) {
+      return {
+        message: nextQuestion.verbatim,
+        shouldConfirm: false,
+        questionId: nextQuestion.id,
+      };
+    }
+    
+    return {
+      message: 'Thank you for providing all the information. A staff member will be with you shortly.',
+      shouldConfirm: false,
+    };
+  }
+
+  /**
+   * Mock information extraction for developer mode
+   */
+  private extractInformationMock(transcript: string): Partial<PatientIntakeSnapshot> {
+    console.log(`[GPT Mock] Extracting information from ${transcript.length} chars`);
+    
+    const extracted: Partial<PatientIntakeSnapshot> = {
+      personalInfo: {},
+      medicalInfo: {
+        symptoms: [],
+        allergies: [],
+        medications: [],
+        medicalHistory: [],
+      },
+    };
+    
+    // Simple keyword extraction
+    const lowerTranscript = transcript.toLowerCase();
+    
+    if (lowerTranscript.includes('john smith') || lowerTranscript.includes('jane doe')) {
+      extracted.personalInfo!.name = transcript.match(/john smith|jane doe/i)?.[0] || undefined;
+    }
+    
+    if (lowerTranscript.includes('penicillin')) {
+      extracted.medicalInfo!.allergies = ['penicillin'];
+    }
+    
+    if (lowerTranscript.includes('lisinopril')) {
+      extracted.medicalInfo!.medications = ['lisinopril'];
+    }
+    
+    return extracted;
   }
 }

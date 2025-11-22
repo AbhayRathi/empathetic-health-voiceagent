@@ -1,0 +1,81 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://empathetic-health.io/schemas/intake-snapshot.json",
+  "title": "IntakeSnapshot",
+  "description": "HIPAA-compliant patient intake snapshot with slot-filling state",
+  "type": "object",
+  "properties": {
+    "call_id": {
+      "type": "string",
+      "description": "Unique identifier for the call session"
+    },
+    "patient": {
+      "type": "object",
+      "properties": {
+        "full_name": {
+          "type": "string",
+          "description": "Patient's full name"
+        },
+        "dob": {
+          "type": "string",
+          "format": "date",
+          "description": "Patient's date of birth (ISO 8601 format)"
+        },
+        "callback_number": {
+          "type": "string",
+          "pattern": "^[+]?[0-9]{10,15}$",
+          "description": "Patient's callback phone number"
+        }
+      }
+    },
+    "answers": {
+      "type": "object",
+      "description": "Slot-filled answers keyed by slot name",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "description": "Extracted value for this slot (can be string, array, boolean, etc.)"
+          },
+          "confidence": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1,
+            "description": "Confidence score for this extraction (0-1)"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["filled", "unknown", "not_applicable"],
+            "description": "Status of this slot"
+          },
+          "evidence_turn_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "List of turn IDs that contributed to this slot value"
+          }
+        },
+        "required": ["status", "confidence", "evidence_turn_ids"]
+      }
+    },
+    "red_flags": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "List of detected safety red flags (e.g., 'chest pain + shortness of breath')"
+    },
+    "completed": {
+      "type": "boolean",
+      "description": "Whether all required questions have been answered"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 timestamp of this snapshot version"
+    }
+  },
+  "required": ["call_id", "answers", "red_flags", "completed", "timestamp"],
+  "additionalProperties": false
+}

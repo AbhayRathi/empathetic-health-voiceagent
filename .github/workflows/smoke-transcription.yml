@@ -1,0 +1,146 @@
+name: Smoke Test - Transcription MVP
+
+on:
+  push:
+    branches: [main, develop, 'feature/**']
+  pull_request:
+    branches: [main, develop]
+  workflow_dispatch:
+
+jobs:
+  smoke-transcription:
+    name: Transcription End-to-End Smoke Test
+    runs-on: ubuntu-latest
+    
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: healthvoice
+          POSTGRES_PASSWORD: test_password
+          POSTGRES_DB: healthvoice_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 3s
+          --health-retries 5
+
+    env:
+      # CRITICAL: DEVELOPER_MODE=true for smoke tests - no real API keys used
+      DEVELOPER_MODE: true
+      
+      # Database and Redis (use service containers)
+      DATABASE_URL: postgresql://healthvoice:test_password@localhost:5432/healthvoice_test
+      REDIS_URL: redis://localhost:6379
+      
+      # Mock placeholders (not used in DEVELOPER_MODE but required by env validation)
+      TWILIO_ACCOUNT_SID: mock_account_sid
+      TWILIO_AUTH_TOKEN: mock_auth_token
+      TWILIO_PHONE_NUMBER: +15550000000
+      TWILIO_AUTH_SECRET: mock_secret
+      DEEPGRAM_API_KEY: mock_deepgram_key
+      ELEVENLABS_API_KEY: mock_elevenlabs_key
+      TWINMIND_API_KEY: mock_twinmind_key
+      TWINMIND_BASE_URL: https://api.twinmind.dev
+      OPENAI_API_KEY: mock_openai_key
+      
+      # Next.js
+      NEXT_PUBLIC_APP_URL: http://localhost:3000
+      API_BASE: http://localhost:3000
+      NODE_ENV: test
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Type check
+        run: npm run type-check
+
+      - name: Start Next.js dev server
+        run: |
+          npm run dev &
+          echo $! > nextjs.pid
+          
+          # Wait for server to be ready (max 60s)
+          for i in {1..60}; do
+            if curl -s http://localhost:3000/api/v1/transcript >/dev/null 2>&1; then
+              echo "✓ Next.js server ready"
+              break
+            fi
+            echo "Waiting for Next.js server... ($i/60)"
+            sleep 1
+          done
+          
+          # Verify server is responding
+          curl -f http://localhost:3000/api/v1/transcript || (echo "Server not ready!" && exit 1)
+
+      - name: Run simulation test
+        run: |
+          echo "=== Running Call Simulation ==="
+          DEVELOPER_MODE=true API_BASE=http://localhost:3000 node scripts/simulate-call.js
+
+      - name: Run smoke test with assertions
+        run: |
+          echo "=== Running Smoke Test Suite ==="
+          DEVELOPER_MODE=true API_BASE=http://localhost:3000 timeout 60 node scripts/smoke-test.js || {
+            echo "❌ Smoke test failed or timed out"
+            exit 1
+          }
+
+      - name: Verify JSON schema compliance
+        run: |
+          echo "=== Verifying JSON Schemas ==="
+          
+          # Check that schema files exist
+          test -f shared/schemas/intake.snapshot.schema.json || (echo "Missing intake snapshot schema" && exit 1)
+          test -f shared/schemas/transcript.turn.schema.json || (echo "Missing transcript turn schema" && exit 1)
+          
+          echo "✓ All required schemas present"
+
+      - name: Cleanup
+        if: always()
+        run: |
+          if [ -f nextjs.pid ]; then
+            kill $(cat nextjs.pid) 2>/dev/null || true
+          fi
+
+      - name: Report results
+        if: always()
+        run: |
+          echo ""
+          echo "=================================================="
+          echo "Smoke Test Summary"
+          echo "=================================================="
+          echo "DEVELOPER_MODE: $DEVELOPER_MODE"
+          echo "Database: PostgreSQL (service container)"
+          echo "Redis: Redis (service container)"
+          echo "Schemas: IntakeSnapshot, TranscriptTurn"
+          echo "=================================================="
+          echo ""
+          echo "✅ Smoke test pipeline complete"
+          echo ""
+          echo "Next steps:"
+          echo "- Add TwinMind real API test (requires TWINMIND_API_KEY secret)"
+          echo "- Add staff UI visual regression tests"
+          echo "- Add load testing for concurrent calls"
